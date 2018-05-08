@@ -1,0 +1,10 @@
+[Unit]
+Description=Remote Lights Service
+
+[Service]
+User=pi
+ExecStart=/usr/bin/python3 /home/pi/Repos/remote_lights/lights.py
+WorkingDirectory=/home/pi/Repos/remote_lights
+
+[Install]
+WantedBy=multi-user.target
