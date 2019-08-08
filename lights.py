@@ -9,7 +9,6 @@ import ruamel.yaml
 GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
 
-sockid = lirc.init("lights", blocking = False)
 arduino_serial = serial.Serial('/dev/ttyACM0', 9600)
 
 yaml_file = open('lights.yaml', 'r')
@@ -63,39 +62,43 @@ if leds:
     time.sleep(2)
     tx_codes()
 
-while True:
-    codeIR = lirc.nextcode()
-    if codeIR:
-        button = codeIR[0]
-        if button == 'FLASH':
-            flash = not flash
-            GPIO.output(23, not flash)
-            print('FLASH\tFLASH\t{}'.format(1.0 if flash else 0.0))
-            save_states()
-            continue
-
-        if button != 'OFF' and button != 'ON' and button != 'B_UP' and button != 'B_DOWN':
-            color = button
-
-        if button == 'ON':
-            button = color
-            leds = True
-        elif button == 'OFF':
-            arduino_serial.write('[0, 0, 0]'.encode())
-            leds = False
-            print('OFF\tOFF\t{}'.format(intensity))
-            save_states()
-            continue
-
-        if button == 'B_DOWN':
-            if intensity <= increment:
+with lirc.RawConnection() as conn:
+    while True:
+        raw_string = conn.readline()
+        codeIR = raw_string.split()[2]
+        if codeIR:
+            button = codeIR
+            if button == 'KEY_FLASH':
+                flash = not flash
+                GPIO.output(23, not flash)
+                print('KEY_FLASH\tKEY_FLASH\t{}'.format(1.0 if flash else 0.0))
+                save_states()
                 continue
-            intensity = round(intensity - increment, 1)
-            rgb_arr = [round(x * (intensity)) for x in rgb_codes[color]]
-        elif button == 'B_UP':
-            if intensity == 1.0:
+
+            if button == 'KEY_STROBE' or button == 'KEY_FADE' or button == 'KEY_SMOOTH':
                 continue
-            intensity = round(intensity + increment, 1)
 
-        tx_codes()
+            if button != 'KEY_OFF' and button != 'KEY_ON' and button != 'KEY_BUP' and button != 'KEY_BDOWN':
+                color = button
 
+            if button == 'KEY_ON':
+                button = color
+                leds = True
+            elif button == 'KEY_OFF':
+                arduino_serial.write('[0, 0, 0]'.encode())
+                leds = False
+                print('KEY_OFF\tKEY_OFF\t{}'.format(intensity))
+                save_states()
+                continue
+
+            if button == 'KEY_BDOWN':
+                if intensity <= increment:
+                    continue
+                intensity = round(intensity - increment, 1)
+                rgb_arr = [round(x * (intensity)) for x in rgb_codes[color]]
+            elif button == 'KEY_BUP':
+                if intensity == 1.0:
+                    continue
+                intensity = round(intensity + increment, 1)
+
+            tx_codes()
